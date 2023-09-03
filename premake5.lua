@@ -91,8 +91,8 @@ project "msdfgen"
 	cppdialect "C++latest"
     staticruntime "on"
 
-	targetdir ("bin/" .. outputdir .. "/%{prj.name}")
-	objdir ("bin-int/" .. outputdir .. "/%{prj.name}")
+	targetdir("%{wks.location}/Build/Binary/"..outputdir.."/%{prj.name}");
+	objdir("%{wks.location}/Build/Intermediate/"..outputdir.."/%{prj.name}");
 
 	files
 	{
