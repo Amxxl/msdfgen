@@ -2,10 +2,10 @@ project "freetype"
 	location "freetype"
 	kind "StaticLib"
 	language "C"
-    staticruntime "off"
+    staticruntime "on"
 
-	targetdir ("bin/" .. outputdir .. "/%{prj.name}")
-	objdir ("bin-int/" .. outputdir .. "/%{prj.name}")
+	targetdir("%{wks.location}/Build/Binary/"..outputdir.."/%{prj.name}");
+	objdir("%{wks.location}/Build/Intermediate/"..outputdir.."/%{prj.name}");
 
 	files
 	{
@@ -88,8 +88,8 @@ project "freetype"
 project "msdfgen"
 	kind "StaticLib"
 	language "C++"
-	cppdialect "C++17"
-    staticruntime "off"
+	cppdialect "C++latest"
+    staticruntime "on"
 
 	targetdir ("bin/" .. outputdir .. "/%{prj.name}")
 	objdir ("bin-int/" .. outputdir .. "/%{prj.name}")
