@@ -52,37 +52,27 @@ static bool readNodeType(char &output, const char *&pathDef) {
     return false;
 }
 
-static bool readCoord(Point2 &output, const char *&pathDef) {
+static bool readDouble(double &output, const char *&pathDef) {
     skipExtraChars(pathDef);
-    int shift;
-    double x, y;
-    if (sscanf(pathDef, "%lf%lf%n", &x, &y, &shift) == 2 || sscanf(pathDef, "%lf , %lf%n", &x, &y, &shift) == 2) {
-        output.x = x;
-        output.y = y;
-        pathDef += shift;
+    char *end = NULL;
+    output = strtod(pathDef, &end);
+    if (end > pathDef) {
+        pathDef = end;
         return true;
     }
     return false;
 }
 
-static bool readDouble(double &output, const char *&pathDef) {
-    skipExtraChars(pathDef);
-    int shift;
-    double v;
-    if (sscanf(pathDef, "%lf%n", &v, &shift) == 1) {
-        pathDef += shift;
-        output = v;
-        return true;
-    }
-    return false;
+static bool readCoord(Point2 &output, const char *&pathDef) {
+    return readDouble(output.x, pathDef) && readDouble(output.y, pathDef);
 }
 
 static bool readBool(bool &output, const char *&pathDef) {
     skipExtraChars(pathDef);
-    int shift;
-    int v;
-    if (sscanf(pathDef, "%d%n", &v, &shift) == 1) {
-        pathDef += shift;
+    char *end = NULL;
+    long v = strtol(pathDef, &end, 10);
+    if (end > pathDef) {
+        pathDef = end;
         output = v != 0;
         return true;
     }
@@ -101,7 +91,7 @@ static void addArcApproximate(Contour &contour, Point2 startPoint, Point2 endPoi
     if (endPoint == startPoint)
         return;
     if (radius.x == 0 || radius.y == 0)
-        return contour.addEdge(new LinearSegment(startPoint, endPoint));
+        return contour.addEdge(EdgeHolder(startPoint, endPoint));
 
     radius.x = fabs(radius.x);
     radius.y = fabs(radius.y);
@@ -142,7 +132,7 @@ static void addArcApproximate(Contour &contour, Point2 startPoint, Point2 endPoi
         d.set(cos(angle), sin(angle));
         controlPoint[1] = center+rotateVector(Vector2(d.x+cl*d.y, d.y-cl*d.x)*radius, axis);
         Point2 node = i == segments-1 ? endPoint : center+rotateVector(d*radius, axis);
-        contour.addEdge(new CubicSegment(prevNode, controlPoint[0], controlPoint[1], node));
+        contour.addEdge(EdgeHolder(prevNode, controlPoint[0], controlPoint[1], node));
         prevNode = node;
     }
 }
@@ -221,19 +211,19 @@ bool buildShapeFromSvgPath(Shape &shape, const char *pathDef, double endpointSna
                     REQUIRE(readCoord(node, pathDef));
                     if (nodeType == 'l')
                         node += prevNode;
-                    contour.addEdge(new LinearSegment(prevNode, node));
+                    contour.addEdge(EdgeHolder(prevNode, node));
                     break;
                 case 'H': case 'h':
                     REQUIRE(readDouble(node.x, pathDef));
                     if (nodeType == 'h')
                         node.x += prevNode.x;
-                    contour.addEdge(new LinearSegment(prevNode, node));
+                    contour.addEdge(EdgeHolder(prevNode, node));
                     break;
                 case 'V': case 'v':
                     REQUIRE(readDouble(node.y, pathDef));
                     if (nodeType == 'v')
                         node.y += prevNode.y;
-                    contour.addEdge(new LinearSegment(prevNode, node));
+                    contour.addEdge(EdgeHolder(prevNode, node));
                     break;
                 case 'Q': case 'q':
                     REQUIRE(readCoord(controlPoint[0], pathDef));
@@ -242,7 +232,7 @@ bool buildShapeFromSvgPath(Shape &shape, const char *pathDef, double endpointSna
                         controlPoint[0] += prevNode;
                         node += prevNode;
                     }
-                    contour.addEdge(new QuadraticSegment(prevNode, controlPoint[0], node));
+                    contour.addEdge(EdgeHolder(prevNode, controlPoint[0], node));
                     break;
                 case 'T': case 't':
                     if (prevNodeType == 'Q' || prevNodeType == 'q' || prevNodeType == 'T' || prevNodeType == 't')
@@ -252,7 +242,7 @@ bool buildShapeFromSvgPath(Shape &shape, const char *pathDef, double endpointSna
                     REQUIRE(readCoord(node, pathDef));
                     if (nodeType == 't')
                         node += prevNode;
-                    contour.addEdge(new QuadraticSegment(prevNode, controlPoint[0], node));
+                    contour.addEdge(EdgeHolder(prevNode, controlPoint[0], node));
                     break;
                 case 'C': case 'c':
                     REQUIRE(readCoord(controlPoint[0], pathDef));
@@ -263,7 +253,7 @@ bool buildShapeFromSvgPath(Shape &shape, const char *pathDef, double endpointSna
                         controlPoint[1] += prevNode;
                         node += prevNode;
                     }
-                    contour.addEdge(new CubicSegment(prevNode, controlPoint[0], controlPoint[1], node));
+                    contour.addEdge(EdgeHolder(prevNode, controlPoint[0], controlPoint[1], node));
                     break;
                 case 'S': case 's':
                     if (prevNodeType == 'C' || prevNodeType == 'c' || prevNodeType == 'S' || prevNodeType == 's')
@@ -276,7 +266,7 @@ bool buildShapeFromSvgPath(Shape &shape, const char *pathDef, double endpointSna
                         controlPoint[1] += prevNode;
                         node += prevNode;
                     }
-                    contour.addEdge(new CubicSegment(prevNode, controlPoint[0], controlPoint[1], node));
+                    contour.addEdge(EdgeHolder(prevNode, controlPoint[0], controlPoint[1], node));
                     break;
                 case 'A': case 'a':
                     {
@@ -309,7 +299,7 @@ bool buildShapeFromSvgPath(Shape &shape, const char *pathDef, double endpointSna
             if ((contour.edges.back()->point(1)-contour.edges[0]->point(0)).length() < endpointSnapRange)
                 contour.edges.back()->moveEndPoint(contour.edges[0]->point(0));
             else
-                contour.addEdge(new LinearSegment(prevNode, startPoint));
+                contour.addEdge(EdgeHolder(prevNode, startPoint));
         }
         prevNode = startPoint;
         prevNodeType = '\0';
@@ -339,10 +329,10 @@ bool loadSvgShape(Shape &output, const char *filename, int pathIndex, Vector2 *d
         return false;
 
     Vector2 dims(root->DoubleAttribute("width"), root->DoubleAttribute("height"));
-    double left, top;
-    const char *viewBox = root->Attribute("viewBox");
-    if (viewBox)
-        sscanf(viewBox, "%lf %lf %lf %lf", &left, &top, &dims.x, &dims.y);
+    if (const char *viewBox = root->Attribute("viewBox")) {
+        double left = 0, top = 0;
+        readDouble(left, viewBox) && readDouble(top, viewBox) && readDouble(dims.x, viewBox) && readDouble(dims.y, viewBox);
+    }
     if (dimensions)
         *dimensions = dims;
     output.contours.clear();
@@ -372,9 +362,8 @@ int loadSvgShape(Shape &output, Shape::Bounds &viewBox, const char *filename) {
 
     viewBox.l = 0, viewBox.b = 0;
     Vector2 dims(root->DoubleAttribute("width"), root->DoubleAttribute("height"));
-    const char *viewBoxStr = root->Attribute("viewBox");
-    if (viewBoxStr)
-        sscanf(viewBoxStr, "%lf %lf %lf %lf", &viewBox.l, &viewBox.b, &dims.x, &dims.y);
+    if (const char *viewBoxStr = root->Attribute("viewBox"))
+        readDouble(viewBox.l, viewBoxStr) && readDouble(viewBox.b, viewBoxStr) && readDouble(dims.x, viewBoxStr) && readDouble(dims.y, viewBoxStr);
     viewBox.r = viewBox.l+dims.x;
     viewBox.t = viewBox.b+dims.y;
     output.contours.clear();
@@ -550,9 +539,8 @@ int loadSvgShape(Shape &output, Shape::Bounds &viewBox, const char *filename) {
 
     viewBox.l = 0, viewBox.b = 0;
     Vector2 dims(root->DoubleAttribute("width"), root->DoubleAttribute("height"));
-    const char *viewBoxStr = root->Attribute("viewBox");
-    if (viewBoxStr)
-        sscanf(viewBoxStr, "%lf %lf %lf %lf", &viewBox.l, &viewBox.b, &dims.x, &dims.y);
+    if (const char *viewBoxStr = root->Attribute("viewBox"))
+        readDouble(viewBox.l, viewBoxStr) && readDouble(viewBox.b, viewBoxStr) && readDouble(dims.x, viewBoxStr) && readDouble(dims.y, viewBoxStr);
     viewBox.r = viewBox.l+dims.x;
     viewBox.t = viewBox.b+dims.y;
     return flags;
