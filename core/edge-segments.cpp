@@ -25,15 +25,15 @@ EdgeSegment *EdgeSegment::create(Point2 p0, Point2 p1, Point2 p2, Point2 p3, Edg
     return new CubicSegment(p0, p1, p2, p3, edgeColor);
 }
 
-void EdgeSegment::distanceToPseudoDistance(SignedDistance &distance, Point2 origin, double param) const {
+void EdgeSegment::distanceToPerpendicularDistance(SignedDistance &distance, Point2 origin, double param) const {
     if (param < 0) {
         Vector2 dir = direction(0).normalize();
         Vector2 aq = origin-point(0);
         double ts = dotProduct(aq, dir);
         if (ts < 0) {
-            double pseudoDistance = crossProduct(aq, dir);
-            if (fabs(pseudoDistance) <= fabs(distance.distance)) {
-                distance.distance = pseudoDistance;
+            double perpendicularDistance = crossProduct(aq, dir);
+            if (fabs(perpendicularDistance) <= fabs(distance.distance)) {
+                distance.distance = perpendicularDistance;
                 distance.dot = 0;
             }
         }
@@ -42,9 +42,9 @@ void EdgeSegment::distanceToPseudoDistance(SignedDistance &distance, Point2 orig
         Vector2 bq = origin-point(1);
         double ts = dotProduct(bq, dir);
         if (ts > 0) {
-            double pseudoDistance = crossProduct(bq, dir);
-            if (fabs(pseudoDistance) <= fabs(distance.distance)) {
-                distance.distance = pseudoDistance;
+            double perpendicularDistance = crossProduct(bq, dir);
+            if (fabs(perpendicularDistance) <= fabs(distance.distance)) {
+                distance.distance = perpendicularDistance;
                 distance.dot = 0;
             }
         }
@@ -522,20 +522,6 @@ void CubicSegment::splitInThirds(EdgeSegment *&part0, EdgeSegment *&part1, EdgeS
 
 EdgeSegment *QuadraticSegment::convertToCubic() const {
     return new CubicSegment(p[0], mix(p[0], p[1], 2/3.), mix(p[1], p[2], 1/3.), p[2], color);
-}
-
-void CubicSegment::deconverge(int param, double amount) {
-    Vector2 dir = direction(param);
-    Vector2 normal = dir.getOrthonormal();
-    double h = dotProduct(directionChange(param)-dir, normal);
-    switch (param) {
-        case 0:
-            p[1] += amount*(dir+sign(h)*sqrt(fabs(h))*normal);
-            break;
-        case 1:
-            p[2] -= amount*(dir-sign(h)*sqrt(fabs(h))*normal);
-            break;
-    }
 }
 
 }
